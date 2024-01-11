@@ -24,7 +24,13 @@ class _Code(object):
         self.co_nlocals = code.co_nlocals
         self.co_stacksize = code.co_stacksize
         self.co_varnames = ()
+        if sys.version_info >= (3, 11):
+            self._co_positions = list(code.co_positions())
 
+    if sys.version_info >= (3, 11):
+        @property
+        def co_positions(self):
+            return self._co_positions.__iter__
 
 class _Frame(object):
     Code = _Code
@@ -52,11 +58,26 @@ class _Frame(object):
         # don't want to hit https://bugs.python.org/issue21967
         self.f_restricted = False
 
+    if sys.version_info >= (3, 11):
+        @property
+        def co_positions(self):
+            return self.f_code.co_positions
 
 class _Object(object):
 
     def __init__(self, **kw):
         [setattr(self, k, v) for k, v in kw.items()]
+
+    if sys.version_info >= (3, 11):
+        __default_co_positions__ = ((None, None, None, None),)
+
+        @property
+        def co_positions(self):
+            return getattr(self, "_co_positions", self.__default_co_positions__).__iter__
+
+        @co_positions.setter
+        def co_positions(self, value):
+            self._co_positions = value  # noqa
 
 
 class _Truncated(object):
@@ -73,6 +94,11 @@ class _Truncated(object):
         )
         self.tb_next = None
         self.tb_lasti = 0
+
+    if sys.version_info >= (3, 11):
+        @property
+        def co_positions(self):
+            return self.tb_frame.co_positions
 
 
 class Traceback(object):
